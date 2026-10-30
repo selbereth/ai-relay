@@ -1,6 +1,6 @@
 import Foundation
 
 enum Config {
-    /// The Mac running server/app.py. The watch must be on the same Wi-Fi for local testing.
-    static let serverURL = URL(string: "http://192.168.1.164:8000")!
+    /// The server running server/app.py (the Docker image).
+    static let serverURL = URL(string: "https://your-server.example.com")!
 }
