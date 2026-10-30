@@ -17,8 +17,7 @@ targets:
       properties:
         CFBundleDisplayName: Claude
         WKApplication: true
-        # no companion iPhone app: the watch app runs on its own
-        WKRunsIndependentlyOfCompanionApp: true
+        WKWatchOnly: true   # no companion iPhone app: the watch app runs on its own
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
     settings:
