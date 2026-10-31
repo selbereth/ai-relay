@@ -10,4 +10,4 @@ Run without Docker: `cd server && LOGIN_PASSWORD=... gunicorn -w 1 --threads 4 -
 Pairing: the watch shows a 6-character code; sign in on the server's web page and enter it. The server has no HTTPS of its own, so put it behind a reverse proxy before using it outside your LAN.
 
 ## Watch app
-SwiftUI, watch-only (no iPhone target). `brew install xcodegen && xcodegen generate`, set `DEVELOPMENT_TEAM` in `project.yml`, the server address is in `WatchClaude/Config.swift`, then build to the watch from Xcode.
+SwiftUI, watch-only (no iPhone target). `brew install xcodegen && xcodegen generate`, the server address is in `WatchClaude/Config.swift`, then build to the watch from Xcode.

@@ -6,7 +6,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    DEVELOPMENT_TEAM: ""   # set your team id, or pick the team in Xcode > Signing
+    DEVELOPMENT_TEAM: LVWPW382HG
 targets:
   WatchClaude:
     type: application
@@ -17,6 +17,7 @@ targets:
       properties:
         CFBundleDisplayName: Wristhost
         WKApplication: true
+        ITSAppUsesNonExemptEncryption: false   # only standard HTTPS
         WKWatchOnly: true   # no companion iPhone app: the watch app runs on its own
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
