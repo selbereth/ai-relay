@@ -69,7 +69,7 @@ struct AskView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
-                TextField("Ask Claude", text: $question)
+                TextField("Ask AI", text: $question)
                     .onSubmit { Task { await ask() } }
                 if busy { ProgressView() }
                 if let answer { Text(answer).font(.body) }
