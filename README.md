@@ -1,4 +1,4 @@
-# Wristhost
+# AI Relay
 
 Ask Claude from an Apple Watch with no iPhone. A small server answers through the Claude Code CLI (always Haiku); the watch pairs with it using a code.
 
