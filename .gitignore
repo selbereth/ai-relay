@@ -14,3 +14,6 @@ icon-backups/
 
 # server address (kept out of the repo)
 WatchClaude/LocalConfig.swift
+
+# local backups (history bundle taken before the rewrite)
+backups/
