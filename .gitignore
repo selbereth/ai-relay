@@ -11,3 +11,6 @@ build/
 
 # icon design options and generator scripts (local backup only)
 icon-backups/
+
+# server address (kept out of the repo)
+WatchClaude/LocalConfig.swift
