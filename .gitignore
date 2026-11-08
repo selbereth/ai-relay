@@ -8,3 +8,6 @@ xcuserdata/
 DerivedData/
 build/
 .DS_Store
+
+# server address (kept out of the repo)
+WatchClaude/LocalConfig.swift
