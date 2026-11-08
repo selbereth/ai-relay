@@ -8,3 +8,6 @@ xcuserdata/
 DerivedData/
 build/
 .DS_Store
+
+# icon design options and generator scripts (local backup only)
+icon-backups/
