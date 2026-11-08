@@ -3,19 +3,38 @@ import WatchKit
 
 struct ContentView: View {
     @State private var token = Keychain.get("token")
+    /// Bumped to rebuild the screens, so PairView starts a fresh pairing against the current server.
+    @State private var epoch = 0
 
     var body: some View {
-        if let token {
-            AskView(token: token) {
-                Keychain.set("token", nil)
-                self.token = nil
+        NavigationStack {
+            Group {
+                if let token {
+                    AskView(token: token) { unpair() }
+                } else {
+                    PairView { newToken in
+                        Keychain.set("token", newToken)
+                        token = newToken
+                    }
+                }
             }
-        } else {
-            PairView { newToken in
-                Keychain.set("token", newToken)
-                token = newToken
+            .id(epoch)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        SettingsView(onRepair: { unpair() }, onServerChanged: { unpair() })
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                }
             }
         }
+    }
+
+    private func unpair() {
+        Keychain.set("token", nil)
+        token = nil
+        epoch += 1
     }
 }
 
