@@ -23,5 +23,5 @@ targets:
           NSAllowsLocalNetworking: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.selbereth.watchclaude
+        PRODUCT_BUNDLE_IDENTIFIER: com.selbereth.airelay
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
