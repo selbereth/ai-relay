@@ -8,9 +8,6 @@ services:
     environment:
       LOGIN_PASSWORD: change-me                  # required: the password for the website
       LOGIN_USER: me                             # optional, default "me"
-      CLAUDE_CODE_OAUTH_TOKEN: ""                # only for the Claude Code option (from `claude setup-token`)
-      # ANTHROPIC_API_KEY: ""                    # optional: instead of entering the key on the Settings page
-      # OPENAI_API_KEY: ""                       # optional: same, for an OpenAI-compatible server
       # SECRET_KEY: ""                           # optional: generated on first start and saved in the volume
       # PUID: 1000                               # optional: user and group the server runs as
       # PGID: 100

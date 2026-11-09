@@ -135,7 +135,7 @@ SETTINGS = """<!doctype html><meta name=viewport content="width=device-width,ini
 {% for k, label in types %}<option value="{{ k }}"{% if k == cfg.type %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></p>
 <p data-for="claude-cli anthropic openai">Model<br><input name=model value="{{ cfg.model or '' }}" style="width:100%" placeholder="{{ hint }}"></p>
 <p data-for="openai">Server address (base URL)<br><input name=base_url value="{{ cfg.base_url or '' }}" style="width:100%" placeholder="http://192.168.1.50:11434/v1  (blank = OpenAI)"></p>
-<p data-for="anthropic openai">API key{% if cfg.api_key %} (saved, leave blank to keep){% endif %}<br><input name=api_key type=password style="width:100%" autocomplete=off></p>
+<p data-for="claude-cli anthropic openai"><span data-for="claude-cli">Claude Code token (run <code>claude setup-token</code>)</span><span data-for="anthropic openai">API key</span>{% if cfg.api_key %} (saved, leave blank to keep){% endif %}<br><input name=api_key type=password style="width:100%" autocomplete=off></p>
 <p data-for="command">Command (question goes to stdin, answer read from stdout)<br><input name=command value="{{ cfg.command or '' }}" style="width:100%"></p>
 <button>Save</button></form>
 <script>const t=document.getElementById('type');function f(){document.querySelectorAll('[data-for]').forEach(e=>e.style.display=e.dataset.for.split(' ').includes(t.value)?'':'none')}t.onchange=f;f()</script>

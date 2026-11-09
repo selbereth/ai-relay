@@ -2,8 +2,8 @@
 
 The watch only sends a question. The server answers it with the configured LLM, a dict with a "type":
 
-  claude-cli  the Claude Code CLI (`claude -p`), uses CLAUDE_CODE_OAUTH_TOKEN or a local login. "model": default Haiku.
-  anthropic   the Claude API (Anthropic SDK). "model", "api_key" (or the ANTHROPIC_API_KEY env var).
+  claude-cli  the Claude Code CLI (`claude -p`), "api_key" is the token from `claude setup-token`. "model": default Haiku.
+  anthropic   the Claude API (Anthropic SDK). "model", "api_key".
   openai      anything that speaks OpenAI chat completions: OpenAI, Ollama, LM Studio, vLLM, OpenRouter, Groq, Gemini's
               OpenAI-compatible endpoint. "base_url" (default https://api.openai.com/v1), "model", "api_key" (optional).
   command     any other agent CLI: "command" is the command line; the question goes to stdin, the answer is stdout.
@@ -25,8 +25,8 @@ class ProviderError(RuntimeError):
     pass
 
 
-def _key(cfg: dict, default_env: str) -> str:
-    key = cfg.get("api_key") or os.environ.get(default_env, "")
+def _key(cfg: dict) -> str:
+    key = cfg.get("api_key", "")
     if not key and cfg.get("type") != "openai":
         raise ProviderError("no API key set (Settings page)")
     return key  # an OpenAI-compatible local server may need no key
@@ -38,8 +38,9 @@ def claude_cli(cfg: dict, question: str) -> str:
          "--tools", "", "--no-session-persistence", "--disable-slash-commands",
          "--setting-sources", "", "--strict-mcp-config", "--system-prompt", cfg.get("system", SYSTEM)],
         input=question, capture_output=True, text=True, timeout=cfg.get("timeout", TIMEOUT),
-        # the CLI provider uses the plan login; the API key is for the "anthropic" provider, so keep it out of here
-        env={k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"},
+        # the token comes from the Settings page only; nothing LLM-related is read from the container environment
+        env={**{k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN")},
+             **({"CLAUDE_CODE_OAUTH_TOKEN": cfg["api_key"]} if cfg.get("api_key") else {})},
     )
     try:
         out = json.loads(proc.stdout)
@@ -56,7 +57,7 @@ def anthropic_api(cfg: dict, question: str) -> str:
     except ImportError:
         raise ProviderError("the anthropic package is not installed (pip install anthropic)")
 
-    client = anthropic.Anthropic(api_key=_key(cfg, "ANTHROPIC_API_KEY"), timeout=cfg.get("timeout", TIMEOUT))
+    client = anthropic.Anthropic(api_key=_key(cfg), timeout=cfg.get("timeout", TIMEOUT))
     try:
         msg = client.messages.create(
             model=cfg.get("model") or DEFAULT_CLAUDE_MODEL,
@@ -79,7 +80,7 @@ def openai_compatible(cfg: dict, question: str) -> str:
         raise ProviderError("no model set (Settings page)")
     url = (cfg.get("base_url") or "https://api.openai.com/v1").rstrip("/") + "/chat/completions"
     headers = {"Content-Type": "application/json"}
-    key = _key(cfg, "OPENAI_API_KEY")
+    key = _key(cfg)
     if key:
         headers["Authorization"] = f"Bearer {key}"
     body = json.dumps({
