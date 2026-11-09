@@ -14,7 +14,7 @@ services:
       PUID: 99
       PGID: 100
       CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}   # only for providers.json providers that need keys
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}   # optional: or enter the key on the Settings page
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       LOGIN_USER: ${LOGIN_USER:-me}
       LOGIN_PASSWORD: ${LOGIN_PASSWORD}

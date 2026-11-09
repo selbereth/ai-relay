@@ -1,6 +1,7 @@
-"""Small server for the watch app: pairs a watch with a login, then answers questions through a configurable LLM."""
+"""Small server for the watch app: pairs a watch with a login, then answers questions through the one LLM set on the Settings page."""
 import hashlib
 import hmac
+import json
 import os
 import secrets
 import sqlite3
@@ -16,7 +17,6 @@ PASSWORD = os.environ.get("LOGIN_PASSWORD", "")
 CODE_TTL = 600
 
 os.makedirs(DATA, exist_ok=True)
-PROVIDERS = providers.load_config(DATA)  # which LLM(s) answer: see providers.py
 app = Flask(__name__)
 
 
@@ -39,6 +39,7 @@ def db() -> sqlite3.Connection:
     con.row_factory = sqlite3.Row
     con.execute("""CREATE TABLE IF NOT EXISTS pairing (
         code TEXT PRIMARY KEY, device_hash TEXT NOT NULL, created REAL NOT NULL, token_hash TEXT, token TEXT)""")
+    con.execute("CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT)")
     con.execute("CREATE TABLE IF NOT EXISTS devices (token_hash TEXT PRIMARY KEY, created REAL NOT NULL)")
     return con
 
@@ -83,11 +84,10 @@ def authed() -> bool:
         return con.execute("SELECT 1 FROM devices WHERE token_hash=?", (h(token),)).fetchone() is not None
 
 
-@app.get("/models")
-def list_models():
-    if not authed():
-        return jsonify(error="not paired"), 401
-    return jsonify(default=PROVIDERS["default"], models=providers.models(PROVIDERS))
+def load_llm() -> dict:
+    with db() as con:
+        row = con.execute("SELECT v FROM settings WHERE k='llm'").fetchone()
+    return json.loads(row["v"]) if row else dict(providers.DEFAULT)
 
 
 @app.post("/ask")
@@ -99,7 +99,7 @@ def ask():
     if not question:
         return jsonify(error="empty question"), 400
     try:
-        return jsonify(answer=providers.answer(PROVIDERS, question[:2000], str(body.get("model") or "")))
+        return jsonify(answer=providers.answer(load_llm(), question[:2000]))
     except Exception as e:  # noqa: BLE001 - shown on the watch as a short message
         return jsonify(error=str(e)[:200]), 502
 
@@ -121,8 +121,28 @@ PAGE = """<!doctype html><meta name=viewport content="width=device-width,initial
 {% else %}<form method=post action="/approve"><p>Code shown on your watch:</p>
 <p><input name=code maxlength=6 style="font-size:1.6rem;text-transform:uppercase;width:9rem" required autofocus></p>
 <button>Pair watch</button></form>
-<h3>Paired watches: {{ n }}</h3><form method=post action="/revoke"><button>Unpair all</button></form>{% endif %}
+<h3>Paired watches: {{ n }}</h3><form method=post action="/revoke"><button>Unpair all</button></form>
+<p><a href="/settings">Settings: which LLM answers</a></p>{% endif %}
 </body>"""
+
+SETTINGS = """<!doctype html><meta name=viewport content="width=device-width,initial-scale=1">
+<title>AI Relay settings</title>
+<link rel=icon href="/icon.png"><link rel=apple-touch-icon href="/icon.png">
+<body style="font:16px system-ui;max-width:28rem;margin:3rem auto;padding:0 1rem">
+<p><a href="/">&larr; Back</a></p><h2>Settings</h2>{% if msg %}<p><b>{{ msg }}</b></p>{% endif %}
+<form method=post action="/settings">
+<p>Which LLM answers your watch?<br><select name=type id=type style="width:100%">
+{% for k, label in types %}<option value="{{ k }}"{% if k == cfg.type %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></p>
+<p data-for="claude-cli anthropic openai">Model<br><input name=model value="{{ cfg.model or '' }}" style="width:100%" placeholder="{{ hint }}"></p>
+<p data-for="openai">Server address (base URL)<br><input name=base_url value="{{ cfg.base_url or '' }}" style="width:100%" placeholder="http://192.168.1.50:11434/v1  (blank = OpenAI)"></p>
+<p data-for="anthropic openai">API key{% if cfg.api_key %} (saved, leave blank to keep){% endif %}<br><input name=api_key type=password style="width:100%" autocomplete=off></p>
+<p data-for="command">Command (question goes to stdin, answer read from stdout)<br><input name=command value="{{ cfg.command or '' }}" style="width:100%"></p>
+<button>Save</button></form>
+<script>const t=document.getElementById('type');function f(){document.querySelectorAll('[data-for]').forEach(e=>e.style.display=e.dataset.for.split(' ').includes(t.value)?'':'none')}t.onchange=f;f()</script>
+</body>"""
+
+TYPE_LABELS = [("claude-cli", "Claude (Claude Code login, default)"), ("anthropic", "Claude API (API key)"),
+               ("openai", "OpenAI-compatible (OpenAI, Ollama, LM Studio, vLLM...)"), ("command", "Other command-line agent")]
 
 
 @app.route("/icon.png")
@@ -163,6 +183,36 @@ def approve():
         con.execute("UPDATE pairing SET token=? WHERE code=?", (token, code))
         con.execute("INSERT INTO devices (token_hash, created) VALUES (?,?)", (h(token), time.time()))
     return redirect(url_for("index", msg="Paired. Your watch will finish in a few seconds."))
+
+
+@app.get("/settings")
+def settings():
+    if not logged_in():
+        return redirect(url_for("index"))
+    return render_template_string(SETTINGS, cfg=load_llm(), types=TYPE_LABELS, msg=request.args.get("msg"),
+                                  hint="blank = Claude Haiku")
+
+
+@app.post("/settings")
+def save_settings():
+    if not logged_in():
+        return redirect(url_for("index"))
+    f = request.form
+    kind = f.get("type", "")
+    if kind not in providers.TYPES:
+        return redirect(url_for("settings", msg="Pick an LLM"))
+    old = load_llm()
+    cfg = {"type": kind, "model": f.get("model", "").strip(), "base_url": f.get("base_url", "").strip(),
+           "command": f.get("command", "").strip(),
+           # a blank key box keeps the saved key (the page never shows it)
+           "api_key": f.get("api_key", "").strip() or (old.get("api_key", "") if old.get("type") == kind else "")}
+    if kind == "openai" and not cfg["model"]:
+        return redirect(url_for("settings", msg="OpenAI-compatible needs a model name"))
+    if kind == "command" and not cfg["command"]:
+        return redirect(url_for("settings", msg="Enter the command"))
+    with db() as con:
+        con.execute("INSERT OR REPLACE INTO settings (k, v) VALUES ('llm', ?)", (json.dumps(cfg),))
+    return redirect(url_for("settings", msg="Saved"))
 
 
 @app.post("/revoke")

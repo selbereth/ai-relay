@@ -1,32 +1,16 @@
-"""Where the answers come from. The watch only sends a question; the server picks which LLM answers it.
+"""Where the answers come from: one LLM, chosen on the website's Settings page (stored in the data volume).
 
-Configure with a JSON file (PROVIDERS_FILE, default <DATA_DIR>/providers.json):
+The watch only sends a question. The server answers it with the configured LLM, a dict with a "type":
 
-    {
-      "default": "claude",
-      "fallback": ["local"],
-      "providers": {
-        "claude":  {"type": "claude-cli"},
-        "api":     {"type": "anthropic", "model": "claude-haiku-5-5"},
-        "gpt":     {"type": "openai", "model": "gpt-4.1-mini", "api_key_env": "OPENAI_API_KEY"},
-        "local":   {"type": "openai", "base_url": "http://ollama:11434/v1", "model": "llama3.2"},
-        "other":   {"type": "command", "command": ["codex", "exec", "--skip-git-repo-check", "-"]}
-      }
-    }
-
-Every provider may have a "label" (shown in the model picker). The watch can choose any defined provider (see /models).
-`default` answers; if it fails, each name in `fallback` is tried in order. With no file there is one provider, the
-Claude Code CLI on Haiku (what the server always did). `LLM_PROVIDER=<name>` picks a different default at start-up.
-
-Types:
-  claude-cli  the Claude Code CLI (`claude -p`), uses CLAUDE_CODE_OAUTH_TOKEN or a local login. model: default Haiku.
-  anthropic   the Claude API (Anthropic SDK). Needs ANTHROPIC_API_KEY (or "api_key_env").
+  claude-cli  the Claude Code CLI (`claude -p`), uses CLAUDE_CODE_OAUTH_TOKEN or a local login. "model": default Haiku.
+  anthropic   the Claude API (Anthropic SDK). "model", "api_key" (or the ANTHROPIC_API_KEY env var).
   openai      anything that speaks OpenAI chat completions: OpenAI, Ollama, LM Studio, vLLM, OpenRouter, Groq, Gemini's
-              OpenAI-compatible endpoint. "base_url" (default https://api.openai.com/v1), "model", "api_key_env".
-  command     any other agent CLI: "command" is the argv; the question goes to stdin, the answer is stdout.
+              OpenAI-compatible endpoint. "base_url" (default https://api.openai.com/v1), "model", "api_key" (optional).
+  command     any other agent CLI: "command" is the command line; the question goes to stdin, the answer is stdout.
 """
 import json
 import os
+import shlex
 import subprocess
 import urllib.error
 import urllib.request
@@ -42,16 +26,15 @@ class ProviderError(RuntimeError):
 
 
 def _key(cfg: dict, default_env: str) -> str:
-    env = cfg.get("api_key_env", default_env)
-    key = os.environ.get(env, "")
+    key = cfg.get("api_key") or os.environ.get(default_env, "")
     if not key and cfg.get("type") != "openai":
-        raise ProviderError(f"{env} is not set")
+        raise ProviderError("no API key set (Settings page)")
     return key  # an OpenAI-compatible local server may need no key
 
 
 def claude_cli(cfg: dict, question: str) -> str:
     proc = subprocess.run(
-        ["claude", "-p", "--output-format", "json", "--model", cfg.get("model", DEFAULT_CLAUDE_MODEL),
+        ["claude", "-p", "--output-format", "json", "--model", cfg.get("model") or DEFAULT_CLAUDE_MODEL,
          "--tools", "", "--no-session-persistence", "--disable-slash-commands",
          "--setting-sources", "", "--strict-mcp-config", "--system-prompt", cfg.get("system", SYSTEM)],
         input=question, capture_output=True, text=True, timeout=cfg.get("timeout", TIMEOUT),
@@ -76,7 +59,7 @@ def anthropic_api(cfg: dict, question: str) -> str:
     client = anthropic.Anthropic(api_key=_key(cfg, "ANTHROPIC_API_KEY"), timeout=cfg.get("timeout", TIMEOUT))
     try:
         msg = client.messages.create(
-            model=cfg.get("model", DEFAULT_CLAUDE_MODEL),
+            model=cfg.get("model") or DEFAULT_CLAUDE_MODEL,
             max_tokens=cfg.get("max_tokens", 1024),
             system=cfg.get("system", SYSTEM),
             output_config={"effort": cfg.get("effort", "low")},  # short answers: little thinking
@@ -92,9 +75,9 @@ def anthropic_api(cfg: dict, question: str) -> str:
 
 
 def openai_compatible(cfg: dict, question: str) -> str:
-    if "model" not in cfg:
-        raise ProviderError("openai provider needs a model")
-    url = cfg.get("base_url", "https://api.openai.com/v1").rstrip("/") + "/chat/completions"
+    if not cfg.get("model"):
+        raise ProviderError("no model set (Settings page)")
+    url = (cfg.get("base_url") or "https://api.openai.com/v1").rstrip("/") + "/chat/completions"
     headers = {"Content-Type": "application/json"}
     key = _key(cfg, "OPENAI_API_KEY")
     if key:
@@ -117,9 +100,12 @@ def openai_compatible(cfg: dict, question: str) -> str:
 
 
 def command(cfg: dict, question: str) -> str:
-    argv = cfg.get("command")
-    if not isinstance(argv, list) or not argv:
-        raise ProviderError('command provider needs "command": [argv...]')
+    try:
+        argv = shlex.split(cfg.get("command") or "")
+    except ValueError as e:
+        raise ProviderError(f"bad command: {e}")
+    if not argv:
+        raise ProviderError("no command set (Settings page)")
     try:
         proc = subprocess.run(argv, input=f"{cfg.get('system', SYSTEM)}\n\n{question}", capture_output=True, text=True,
                               timeout=cfg.get("timeout", TIMEOUT))
@@ -131,49 +117,18 @@ def command(cfg: dict, question: str) -> str:
 
 
 TYPES = {"claude-cli": claude_cli, "anthropic": anthropic_api, "openai": openai_compatible, "command": command}
+DEFAULT = {"type": "claude-cli"}
 
 
-def load_config(data_dir: str) -> dict:
-    path = os.environ.get("PROVIDERS_FILE", os.path.join(data_dir, "providers.json"))
-    if os.path.exists(path):
-        with open(path) as f:
-            cfg = json.load(f)
-    else:
-        cfg = {"default": "claude", "providers": {"claude": {"type": "claude-cli"}}}
-    if os.environ.get("LLM_PROVIDER"):
-        cfg["default"] = os.environ["LLM_PROVIDER"]
-    names = [cfg["default"], *cfg.get("fallback", [])]
-    for name in names:
-        p = cfg.get("providers", {}).get(name)
-        if p is None:
-            raise SystemExit(f"providers: '{name}' is not defined in {path}")
-        if p.get("type") not in TYPES:
-            raise SystemExit(f"providers: '{name}' has unknown type {p.get('type')!r} (use {', '.join(TYPES)})")
-    return cfg
-
-
-def models(cfg: dict) -> list[dict]:
-    """Every defined provider, for the model picker: id is the key in providers.json."""
-    return [{"id": k, "name": v.get("label") or v.get("model") or k} for k, v in cfg["providers"].items()
-            if v.get("type") in TYPES]
-
-
-def answer(cfg: dict, question: str, choice: str = "") -> str:
-    """Ask the chosen provider (default if none or unknown); on failure try the default and each fallback.
-    Raises ProviderError listing what went wrong."""
-    order = [cfg["default"], *cfg.get("fallback", [])]
-    if choice in cfg["providers"] and cfg["providers"][choice].get("type") in TYPES:
-        order = [choice, *[n for n in order if n != choice]]
-    problems = []
-    for name in order:
-        p = cfg["providers"][name]
-        try:
-            text = TYPES[p["type"]](p, question)
-            if text:
-                return text
-            problems.append(f"{name}: empty answer")
-        except ProviderError as e:
-            problems.append(f"{name}: {e}")
-        except subprocess.TimeoutExpired:
-            problems.append(f"{name}: timed out")
-    raise ProviderError("; ".join(problems))
+def answer(cfg: dict, question: str) -> str:
+    """Ask the configured LLM. Raises ProviderError with a short reason."""
+    fn = TYPES.get(cfg.get("type"))
+    if fn is None:
+        raise ProviderError("no LLM set up (Settings page)")
+    try:
+        text = fn(cfg, question)
+    except subprocess.TimeoutExpired:
+        raise ProviderError("timed out")
+    if not text:
+        raise ProviderError("empty answer")
+    return text
