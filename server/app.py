@@ -1,25 +1,22 @@
-"""Small server for the watch app: pairs a watch with a login, then answers questions through the Claude CLI (Haiku only)."""
+"""Small server for the watch app: pairs a watch with a login, then answers questions through a configurable LLM."""
 import hashlib
 import hmac
-import json
 import os
 import secrets
 import sqlite3
-import subprocess
 import time
 
 from flask import Flask, jsonify, redirect, render_template_string, request, send_from_directory, session, url_for
 
+import providers
+
 DATA = os.environ.get("DATA_DIR", os.path.join(os.path.dirname(__file__), "data"))
 USERNAME = os.environ.get("LOGIN_USER", "me")
 PASSWORD = os.environ.get("LOGIN_PASSWORD", "")
-MODEL = "claude-haiku-5-5"  # fixed: the watch cannot pick a model
-SYSTEM = ("You answer on a tiny smartwatch screen. Reply in plain text, under 60 words, no markdown, "
-          "no lists unless asked. If a question needs more than that, give the short answer first.")
 CODE_TTL = 600
-ASK_TIMEOUT = 90
 
 os.makedirs(DATA, exist_ok=True)
+PROVIDERS = providers.load_config(DATA)  # which LLM(s) answer: see providers.py
 app = Flask(__name__)
 
 
@@ -94,26 +91,9 @@ def ask():
     if not question:
         return jsonify(error="empty question"), 400
     try:
-        return jsonify(answer=run_claude(question[:2000]))
+        return jsonify(answer=providers.answer(PROVIDERS, question[:2000]))
     except Exception as e:  # noqa: BLE001 - shown on the watch as a short message
         return jsonify(error=str(e)[:200]), 502
-
-
-def run_claude(question: str) -> str:
-    proc = subprocess.run(
-        ["claude", "-p", "--output-format", "json", "--model", MODEL,
-         "--tools", "", "--no-session-persistence", "--disable-slash-commands",
-         "--setting-sources", "", "--strict-mcp-config", "--system-prompt", SYSTEM],
-        input=question, capture_output=True, text=True, timeout=ASK_TIMEOUT,
-        env={k: v for k, v in os.environ.items() if v or k != "ANTHROPIC_API_KEY"},
-    )
-    try:
-        out = json.loads(proc.stdout)
-    except json.JSONDecodeError:
-        raise RuntimeError(f"claude CLI failed ({proc.returncode}): {(proc.stderr or proc.stdout)[:200]}")
-    if out.get("is_error"):
-        raise RuntimeError(f"claude CLI error: {str(out.get('result'))[:200]}")
-    return str(out.get("result", "")).strip()
 
 
 # ---- web login to approve a watch ----

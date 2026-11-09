@@ -10,6 +10,10 @@ services:
       PUID: ${PUID:-1000}
       PGID: ${PGID:-100}
       CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN}
+      # Other providers (see README "Which LLM answers"): set the keys your providers.json names
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LLM_PROVIDER: ${LLM_PROVIDER:-}
       LOGIN_USER: ${LOGIN_USER:-me}
       LOGIN_PASSWORD: ${LOGIN_PASSWORD}
       SECRET_KEY: ${SECRET_KEY:-}   # optional: generated on first start and saved in the volume
