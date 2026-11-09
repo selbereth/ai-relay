@@ -12,6 +12,8 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var text = Config.displayText
     @State private var confirmRepair = false
+    @State private var models: [API.Model] = []
+    @AppStorage("model") private var model = ""
 
     private var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var invalid: Bool { !trimmed.isEmpty && Config.normalize(trimmed) == nil }
@@ -27,6 +29,14 @@ struct SettingsView: View {
                     Text("Not a valid address").font(.footnote).foregroundStyle(.red)
                 }
             }
+            if !isSetup && !models.isEmpty {
+                Section("Model") {
+                    Picker("Model", selection: $model) {
+                        Text("Server default").tag("")
+                        ForEach(models) { Text($0.name).tag($0.id) }
+                    }
+                }
+            }
             if !isSetup {
                 Section("Pairing") {
                     Button("Re-pair this watch", role: .destructive) { confirmRepair = true }
@@ -35,6 +45,11 @@ struct SettingsView: View {
         }
         .navigationTitle(isSetup ? "AI Relay" : "Settings")
         .onDisappear { if !isSetup { commit() } }
+        .task {
+            guard !isSetup, let token = Keychain.get("token") else { return }
+            models = (try? await API.models(token: token).models) ?? []
+            if !model.isEmpty && !models.contains(where: { $0.id == model }) { model = "" }  // server no longer has it
+        }
         .confirmationDialog("Forget this pairing and get a new code?", isPresented: $confirmRepair, titleVisibility: .visible) {
             Button("Re-pair", role: .destructive) { onRepair(); dismiss() }
             Button("Cancel", role: .cancel) {}

@@ -14,7 +14,7 @@ Docker image `ghcr.io/selbereth/ai-relay:latest`, built from `server/` (CI is de
 Run without Docker: `cd server && LOGIN_PASSWORD=... gunicorn -w 1 --threads 4 --timeout 120 -b 0.0.0.0:8000 app:app` (uses the local `claude` login).
 
 ### Which LLM answers
-By default the Claude Code CLI on Haiku. To use the Claude API or any other model, put a `providers.json` in the data volume (`/data/providers.json`, or set `PROVIDERS_FILE`). `default` answers; if it fails, the names in `fallback` are tried in order. The watch never picks, so add or change providers without touching the app.
+By default the Claude Code CLI on Haiku. To use the Claude API or any other model, put a `providers.json` in the data volume (`/data/providers.json`, or set `PROVIDERS_FILE`). `default` answers; if it fails, the names in `fallback` are tried in order. Every provider in the file shows up in the watch app: Settings (gear) > Model picks one for that watch ("Server default" follows `default`); if the chosen one fails, the default and fallbacks are tried. Give a provider a `"label"` to name it in the picker. `GET /models` lists them and `/ask` accepts `"model": "<name>"`.
 
 ```json
 {

@@ -83,15 +83,23 @@ def authed() -> bool:
         return con.execute("SELECT 1 FROM devices WHERE token_hash=?", (h(token),)).fetchone() is not None
 
 
+@app.get("/models")
+def list_models():
+    if not authed():
+        return jsonify(error="not paired"), 401
+    return jsonify(default=PROVIDERS["default"], models=providers.models(PROVIDERS))
+
+
 @app.post("/ask")
 def ask():
     if not authed():
         return jsonify(error="not paired"), 401
-    question = ((request.get_json(silent=True) or {}).get("question") or "").strip()
+    body = request.get_json(silent=True) or {}
+    question = (body.get("question") or "").strip()
     if not question:
         return jsonify(error="empty question"), 400
     try:
-        return jsonify(answer=providers.answer(PROVIDERS, question[:2000]))
+        return jsonify(answer=providers.answer(PROVIDERS, question[:2000], str(body.get("model") or "")))
     except Exception as e:  # noqa: BLE001 - shown on the watch as a short message
         return jsonify(error=str(e)[:200]), 502
 

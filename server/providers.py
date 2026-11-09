@@ -14,6 +14,7 @@ Configure with a JSON file (PROVIDERS_FILE, default <DATA_DIR>/providers.json):
       }
     }
 
+Every provider may have a "label" (shown in the model picker). The watch can choose any defined provider (see /models).
 `default` answers; if it fails, each name in `fallback` is tried in order. With no file there is one provider, the
 Claude Code CLI on Haiku (what the server always did). `LLM_PROVIDER=<name>` picks a different default at start-up.
 
@@ -151,10 +152,20 @@ def load_config(data_dir: str) -> dict:
     return cfg
 
 
-def answer(cfg: dict, question: str) -> str:
-    """Ask the default provider; on failure try each fallback. Raises ProviderError listing what went wrong."""
+def models(cfg: dict) -> list[dict]:
+    """Every defined provider, for the model picker: id is the key in providers.json."""
+    return [{"id": k, "name": v.get("label") or v.get("model") or k} for k, v in cfg["providers"].items()
+            if v.get("type") in TYPES]
+
+
+def answer(cfg: dict, question: str, choice: str = "") -> str:
+    """Ask the chosen provider (default if none or unknown); on failure try the default and each fallback.
+    Raises ProviderError listing what went wrong."""
+    order = [cfg["default"], *cfg.get("fallback", [])]
+    if choice in cfg["providers"] and cfg["providers"][choice].get("type") in TYPES:
+        order = [choice, *[n for n in order if n != choice]]
     problems = []
-    for name in [cfg["default"], *cfg.get("fallback", [])]:
+    for name in order:
         p = cfg["providers"][name]
         try:
             text = TYPES[p["type"]](p, question)
