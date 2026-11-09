@@ -1,0 +1,19 @@
+# Portainer stack (Stacks > Add stack > Web editor) or `docker compose up -d`.
+# Get CLAUDE_CODE_OAUTH_TOKEN by running `claude setup-token` on a machine logged in to your plan.
+services:
+  ai-relay:
+    image: ghcr.io/selbereth/ai-relay:latest
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-100}
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN}
+      LOGIN_USER: ${LOGIN_USER:-me}
+      LOGIN_PASSWORD: ${LOGIN_PASSWORD}
+      SECRET_KEY: ${SECRET_KEY:-}   # optional: generated on first start and saved in the volume
+    volumes:
+      - relay-data:/data
+volumes:
+  relay-data:

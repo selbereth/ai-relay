@@ -1,0 +1,27 @@
+name: WatchClaude
+options:
+  bundleIdPrefix: com.selbereth
+  deploymentTarget:
+    watchOS: "10.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    DEVELOPMENT_TEAM: LVWPW382HG
+targets:
+  WatchClaude:
+    type: application
+    platform: watchOS
+    sources: [WatchClaude]
+    info:
+      path: WatchClaude/Info.plist
+      properties:
+        CFBundleDisplayName: AI Relay
+        WKApplication: true
+        ITSAppUsesNonExemptEncryption: false   # only standard HTTPS
+        WKWatchOnly: true   # no companion iPhone app: the watch app runs on its own
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.selbereth.airelay
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
