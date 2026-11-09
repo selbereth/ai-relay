@@ -2,7 +2,7 @@
 # Get CLAUDE_CODE_OAUTH_TOKEN by running `claude setup-token` on a machine logged in to your plan.
 services:
   ai-relay:
-    image: ghcr.io/selbereth/watch-claude:latest
+    image: ghcr.io/selbereth/ai-relay:latest
     restart: unless-stopped
     ports:
       - "${PORT:-8000}:8000"

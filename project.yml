@@ -1,4 +1,4 @@
-name: WatchClaude
+name: AIRelay
 options:
   bundleIdPrefix: com.selbereth
   deploymentTarget:
@@ -8,12 +8,12 @@ settings:
     SWIFT_VERSION: "5.0"
     DEVELOPMENT_TEAM: LVWPW382HG
 targets:
-  WatchClaude:
+  AIRelay:
     type: application
     platform: watchOS
-    sources: [WatchClaude]
+    sources: [AIRelay]
     info:
-      path: WatchClaude/Info.plist
+      path: AIRelay/Info.plist
       properties:
         CFBundleDisplayName: AI Relay
         WKApplication: true

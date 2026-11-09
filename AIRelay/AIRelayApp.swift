@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct WatchClaudeApp: App {
+struct AIRelayApp: App {
     var body: some Scene {
         WindowGroup { ContentView() }
     }
