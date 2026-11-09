@@ -3,13 +3,36 @@
 Ask Claude from an Apple Watch with no iPhone. A small server answers through the Claude Code CLI (Haiku by default), the Claude API or any other LLM you configure; the watch pairs with it using a code.
 
 ## Server
-Docker image `ghcr.io/selbereth/ai-relay:latest`, built from `server/` (CI is deferred for now). Use `docker-compose.yml` (set `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token`, and `LOGIN_PASSWORD`).
+Docker image `ghcr.io/selbereth/ai-relay:latest`, built from `server/` (CI is deferred for now). Example `docker-compose.yml` (also works as a Portainer stack):
 
-### Portainer
-1. Stacks > Add stack > Web editor, name it `ai-relay`, paste [`portainer.yaml`](portainer.yaml).
-2. Under Environment variables set `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) and `LOGIN_PASSWORD`. Optionally `LOGIN_USER` (default `me`).
-3. Deploy. The web page is on host port 8012 (change the left side of `8012:8000` to use another port). Data (paired watches, session key) is in `/mnt/user/appdata/ai-relay`.
-4. Update: Stacks > ai-relay > Editor > "Re-pull image and redeploy". Never commit the token or password.
+```yaml
+services:
+  ai-relay:
+    image: ghcr.io/selbereth/ai-relay:latest
+    container_name: ai-relay
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      LOGIN_PASSWORD: change-me
+      CLAUDE_CODE_OAUTH_TOKEN: ""   # only for the Claude Code option
+    volumes:
+      - ./data:/data
+```
+
+Environment variables:
+
+| Variable | Required | What it does |
+| --- | --- | --- |
+| `LOGIN_PASSWORD` | yes | Password for the website (needed to pair a watch and open Settings). |
+| `LOGIN_USER` | no | Website user name. Default `me`. |
+| `CLAUDE_CODE_OAUTH_TOKEN` | for the Claude Code option | Token from `claude setup-token`. |
+| `ANTHROPIC_API_KEY` | no | API key for the Claude API option, instead of entering it on the Settings page. |
+| `OPENAI_API_KEY` | no | Same, for the OpenAI-compatible option. |
+| `SECRET_KEY` | no | Session signing key. Generated on first start and saved in `/data` if not set. |
+| `PUID` / `PGID` | no | User and group the server runs as. Defaults `1000` / `100`. |
+
+Put the data volume somewhere persistent: it holds the paired watches, the LLM setting and any API key entered on the page.
 
 Run without Docker: `cd server && LOGIN_PASSWORD=... gunicorn -w 1 --threads 4 --timeout 120 -b 0.0.0.0:8000 app:app` (uses the local `claude` login).
 
