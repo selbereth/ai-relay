@@ -42,6 +42,9 @@ One LLM, set on the website: sign in, open **Settings**, pick the type and fill 
 
 Tokens and API keys entered on the page are saved in the data volume, so protect that folder. The page never shows a saved key; leave the box blank to keep it.
 
+### Watches and messages
+Each paired watch is listed on the home page with its name (the watch sends its own name when pairing; you can also type one when pairing). Rename it or remove just that watch there; "Unpair all" removes every watch. Every question and answer is saved (Settings > Messages turns saving off); **Messages** shows them with the watch name and time, and lets you delete one or all. Messages stay when a watch is removed. They are stored unencrypted in `/data/watch.db`.
+
 Pairing: the watch shows a 6-character code; sign in on the server's web page and enter it. The server has no HTTPS of its own, so put it behind a reverse proxy before using it outside your LAN.
 
 ## Watch app

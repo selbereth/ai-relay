@@ -1,4 +1,5 @@
 import Foundation
+import WatchKit
 
 struct APIError: LocalizedError {
     let message: String
@@ -28,7 +29,7 @@ enum API {
     }
 
     static func startPairing() async throws -> Pairing {
-        try await send("pair/start").0
+        try await send("pair/start", body: ["name": WKInterfaceDevice.current().name]).0
     }
 
     /// Returns the token once the web login has approved the code, nil while still pending.
