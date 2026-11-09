@@ -90,8 +90,8 @@ struct AskView: View {
                 HStack(alignment: .top, spacing: 6) {
                     questionBox
                     if !question.isEmpty {
-                        // Erases what is typed so far.
-                        Button { question = "" } label: { Image(systemName: "xmark.circle.fill") }
+                        // Removes the question and its answer, back to an empty screen.
+                        Button { question = ""; answer = nil } label: { Image(systemName: "xmark.circle.fill") }
                             .buttonStyle(.plain)
                             .foregroundStyle(.secondary)
                             .accessibilityLabel("Clear")
