@@ -1,7 +1,7 @@
 # Portainer stack (Stacks > Add stack > Web editor) or `docker compose up -d`.
 # Get CLAUDE_CODE_OAUTH_TOKEN by running `claude setup-token` on a machine logged in to your plan.
 services:
-  watch-claude:
+  ai-relay:
     image: ghcr.io/selbereth/watch-claude:latest
     restart: unless-stopped
     ports:

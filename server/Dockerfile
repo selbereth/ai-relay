@@ -7,7 +7,7 @@ ENV HOME=/data DATA_DIR=/data
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY app.py entrypoint.sh ./
+COPY app.py entrypoint.sh icon.png ./
 RUN mkdir /data && chmod 777 /data
 ENV PUID=1000 PGID=100
 EXPOSE 8000

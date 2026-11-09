@@ -8,7 +8,7 @@ import sqlite3
 import subprocess
 import time
 
-from flask import Flask, jsonify, redirect, render_template_string, request, session, url_for
+from flask import Flask, jsonify, redirect, render_template_string, request, send_from_directory, session, url_for
 
 DATA = os.environ.get("DATA_DIR", os.path.join(os.path.dirname(__file__), "data"))
 USERNAME = os.environ.get("LOGIN_USER", "me")
@@ -123,9 +123,10 @@ def logged_in() -> bool:
 
 
 PAGE = """<!doctype html><meta name=viewport content="width=device-width,initial-scale=1">
-<title>Watch Claude</title>
+<title>AI Relay</title>
+<link rel=icon href="/icon.png"><link rel=apple-touch-icon href="/icon.png">
 <body style="font:16px system-ui;max-width:24rem;margin:3rem auto;padding:0 1rem">
-<h2>Watch Claude</h2>{% if msg %}<p><b>{{ msg }}</b></p>{% endif %}
+<img src="/icon.png" width=64 height=64 style="border-radius:14px"><h2>AI Relay</h2>{% if msg %}<p><b>{{ msg }}</b></p>{% endif %}
 {% if not user %}<form method=post action="/login">
 <p><input name=username placeholder=username required autofocus></p>
 <p><input name=password type=password placeholder=password required></p><button>Sign in</button></form>
@@ -134,6 +135,11 @@ PAGE = """<!doctype html><meta name=viewport content="width=device-width,initial
 <button>Pair watch</button></form>
 <h3>Paired watches: {{ n }}</h3><form method=post action="/revoke"><button>Unpair all</button></form>{% endif %}
 </body>"""
+
+
+@app.route("/icon.png")
+def icon():
+    return send_from_directory(os.path.dirname(os.path.abspath(__file__)), "icon.png", max_age=86400)
 
 
 @app.route("/")
