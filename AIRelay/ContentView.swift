@@ -87,8 +87,10 @@ struct AskView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
-                    TextField("Ask AI", text: $question)
+                HStack(alignment: .top, spacing: 6) {
+                    // A long question wraps onto more lines instead of being cut off; the page scrolls with the Digital Crown.
+                    TextField("Ask AI", text: $question, axis: .vertical)
+                        .lineLimit(1...)
                         .onSubmit { Task { await ask() } }
                     if !question.isEmpty {
                         // Erases what is typed so far.
