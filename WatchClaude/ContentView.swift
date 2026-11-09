@@ -9,7 +9,10 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if let token {
+                if Config.serverURL == nil {
+                    // First run, or the address was erased: ask for it before anything else.
+                    SettingsView(isSetup: true, onRepair: {}, onServerChanged: { unpair() })
+                } else if let token {
                     AskView(token: token) { unpair() }
                 } else {
                     PairView { newToken in
@@ -20,11 +23,13 @@ struct ContentView: View {
             }
             .id(epoch)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        SettingsView(onRepair: { unpair() }, onServerChanged: { unpair() })
-                    } label: {
-                        Image(systemName: "gearshape")
+                if Config.serverURL != nil {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        NavigationLink {
+                            SettingsView(isSetup: false, onRepair: { unpair() }, onServerChanged: { unpair() })
+                        } label: {
+                            Image(systemName: "gearshape")
+                        }
                     }
                 }
             }
@@ -48,7 +53,7 @@ struct PairView: View {
         VStack(spacing: 6) {
             if let code {
                 Text("Enter this code at").font(.footnote)
-                Text(Config.serverURL.host ?? "").font(.caption2).foregroundStyle(.secondary)
+                Text(Config.serverURL?.host ?? "").font(.caption2).foregroundStyle(.secondary)
                 Text(code).font(.system(.title, design: .monospaced).bold())
                 ProgressView()
             } else if let error {

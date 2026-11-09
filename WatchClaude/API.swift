@@ -16,7 +16,8 @@ enum API {
 
     private static func send<T: Decodable>(_ path: String, body: [String: String] = [:], token: String? = nil,
                                            timeout: TimeInterval = 30) async throws -> (T, Int) {
-        var req = URLRequest(url: Config.serverURL.appendingPathComponent(path), timeoutInterval: timeout)
+        guard let base = Config.serverURL else { throw APIError(message: "No server address") }
+        var req = URLRequest(url: base.appendingPathComponent(path), timeoutInterval: timeout)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if let token { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }

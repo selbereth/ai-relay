@@ -1,32 +1,36 @@
 import Foundation
 
+/// The server address is set on the watch (Settings) and kept in UserDefaults. There is no built-in address.
 enum Config {
-    private static let overrideKey = "serverURL"
+    private static let key = "serverURL"
 
-    /// The server running server/app.py (the Docker image).
-    /// The built-in address lives in WatchClaude/LocalConfig.swift, which is not committed.
-    /// Settings on the watch can override it; the override is kept in UserDefaults.
-    static var serverURL: URL {
-        if let s = UserDefaults.standard.string(forKey: overrideKey), let url = URL(string: s) { return url }
-        return LocalConfig.serverURL
+    /// The saved address as a full URL, or nil until one has been entered.
+    static var serverURL: URL? {
+        guard let s = stored else { return nil }
+        return URL(string: s)
     }
 
-    static var hasOverride: Bool { UserDefaults.standard.string(forKey: overrideKey) != nil }
+    /// The saved address exactly as stored (always has a scheme).
+    static var stored: String? { UserDefaults.standard.string(forKey: key) }
 
-    /// Saves a new server address. Returns false if it is not a usable http(s) address.
-    @discardableResult
-    static func setServerURL(_ text: String) -> Bool {
+    /// The saved address without "https://", the way it is shown and typed.
+    static var displayText: String {
+        guard let s = stored else { return "" }
+        return s.hasPrefix("https://") ? String(s.dropFirst("https://".count)) : s
+    }
+
+    /// Turns what the user typed into a full address: "claude.abc.com" becomes "https://claude.abc.com".
+    /// An explicit http:// or https:// is kept. Returns nil if the text is not a usable address.
+    static func normalize(_ text: String) -> String? {
         var s = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !s.isEmpty else { return false }
+        guard !s.isEmpty else { return nil }
         if !s.contains("://") { s = "https://" + s }
         while s.hasSuffix("/") { s.removeLast() }
         guard let url = URL(string: s), let scheme = url.scheme?.lowercased(),
-              scheme == "https" || scheme == "http", let host = url.host, !host.isEmpty else { return false }
-        UserDefaults.standard.set(s, forKey: overrideKey)
-        return true
+              scheme == "https" || scheme == "http", let host = url.host, !host.isEmpty else { return nil }
+        return s
     }
 
-    static func resetServerURL() {
-        UserDefaults.standard.removeObject(forKey: overrideKey)
-    }
+    static func store(_ address: String) { UserDefaults.standard.set(address, forKey: key) }
+    static func clear() { UserDefaults.standard.removeObject(forKey: key) }
 }

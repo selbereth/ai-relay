@@ -1,55 +1,61 @@
 import SwiftUI
 
-/// Reached from the gear button on every screen: change the server address, or pair the watch again.
+/// The server address and pairing. It is the first screen when no address has been entered yet (`isSetup`),
+/// and is otherwise reached from the gear button. The address saves by itself: on return, and when you leave the screen.
 struct SettingsView: View {
+    let isSetup: Bool
     /// Forget the token and start pairing again (same server).
     let onRepair: () -> Void
     /// The server address changed: the old token belongs to the old server, so pair again.
     let onServerChanged: () -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var urlText = Config.serverURL.absoluteString
-    @State private var custom = Config.hasOverride
-    @State private var message: String?
+    @State private var text = Config.displayText
     @State private var confirmRepair = false
+
+    private var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var invalid: Bool { !trimmed.isEmpty && Config.normalize(trimmed) == nil }
 
     var body: some View {
         List {
-            Section("Server address") {
-                TextField("https://…", text: $urlText)
+            Section(isSetup ? "Enter your server address" : "Server address") {
+                TextField("claude.example.com", text: $text)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                Button("Save address") {
-                    let before = Config.serverURL
-                    if Config.setServerURL(urlText) {
-                        urlText = Config.serverURL.absoluteString
-                        custom = true
-                        message = "Saved"
-                        if Config.serverURL != before { onServerChanged(); dismiss() }
-                    } else {
-                        message = "Not a valid address"
-                    }
+                    .onSubmit { commit() }
+                if invalid {
+                    Text("Not a valid address").font(.footnote).foregroundStyle(.red)
                 }
-                if custom {
-                    Button("Use built-in address") {
-                        let before = Config.serverURL
-                        Config.resetServerURL()
-                        urlText = Config.serverURL.absoluteString
-                        custom = false
-                        message = "Using built-in address"
-                        if Config.serverURL != before { onServerChanged(); dismiss() }
-                    }
-                }
-                if let message { Text(message).font(.footnote).foregroundStyle(.secondary) }
             }
-            Section("Pairing") {
-                Button("Re-pair this watch", role: .destructive) { confirmRepair = true }
+            if !isSetup {
+                Section("Pairing") {
+                    Button("Re-pair this watch", role: .destructive) { confirmRepair = true }
+                }
             }
         }
-        .navigationTitle("Settings")
+        .navigationTitle(isSetup ? "AI Relay" : "Settings")
+        .toolbar {
+            if !text.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { text = "" } label: { Image(systemName: "xmark") }
+                }
+            }
+        }
+        .onDisappear { if !isSetup { commit() } }
         .confirmationDialog("Forget this pairing and get a new code?", isPresented: $confirmRepair, titleVisibility: .visible) {
             Button("Re-pair", role: .destructive) { onRepair(); dismiss() }
             Button("Cancel", role: .cancel) {}
         }
+    }
+
+    /// Saves what is in the field. An empty field removes the address; an invalid one is ignored (the old address stays).
+    private func commit() {
+        if trimmed.isEmpty {
+            if Config.stored != nil { Config.clear(); onServerChanged() }
+            return
+        }
+        guard let address = Config.normalize(trimmed), address != Config.stored else { return }
+        Config.store(address)
+        onServerChanged()
     }
 }

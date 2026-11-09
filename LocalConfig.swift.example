@@ -1,6 +1,0 @@
-import Foundation
-
-// Copy this file to WatchClaude/LocalConfig.swift (gitignored) and put your server address in it.
-enum LocalConfig {
-    static let serverURL = URL(string: "https://your-server.example.com")!
-}
