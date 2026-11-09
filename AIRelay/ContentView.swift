@@ -88,10 +88,7 @@ struct AskView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .top, spacing: 6) {
-                    // A long question wraps onto more lines instead of being cut off; the page scrolls with the Digital Crown.
-                    TextField("Ask AI", text: $question, axis: .vertical)
-                        .lineLimit(1...)
-                        .onSubmit { Task { await ask() } }
+                    questionBox
                     if !question.isEmpty {
                         // Erases what is typed so far.
                         Button { question = "" } label: { Image(systemName: "xmark.circle.fill") }
@@ -109,6 +106,28 @@ struct AskView: View {
             if question.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) { SettingsGear(onChange: onUnpaired) }
             }
+        }
+    }
+
+    /// A watchOS text field only ever shows one truncated line. So once there is text, the question is shown as
+    /// wrapped text (as many lines as it needs) with the real, invisible text field on top, so a tap still edits it.
+    /// The page scrolls with the Digital Crown.
+    @ViewBuilder private var questionBox: some View {
+        if question.isEmpty {
+            TextField("Ask AI", text: $question)
+                .onSubmit { Task { await ask() } }
+        } else {
+            Text(question)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 12)
+                .background(Color.gray.opacity(0.25), in: RoundedRectangle(cornerRadius: 12))
+                .overlay {
+                    TextField("", text: $question)
+                        .foregroundStyle(.clear)
+                        .opacity(0.011)
+                        .onSubmit { Task { await ask() } }
+                }
         }
     }
 
