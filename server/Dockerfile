@@ -1,7 +1,7 @@
 FROM python:3.12-slim
 # Node + Claude Code CLI: the server answers questions through `claude -p`
 RUN apt-get update && apt-get install -y --no-install-recommends nodejs npm \
-    && npm install -g @anthropic-ai/claude-code && npm cache clean --force \
+    && npm install -g @anthropic-ai/claude-code@2.1.319 && npm cache clean --force \
     && rm -rf /var/lib/apt/lists/*
 ENV HOME=/data DATA_DIR=/data
 WORKDIR /app

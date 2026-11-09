@@ -21,6 +21,12 @@ TIMEOUT = 90
 DEFAULT_CLAUDE_MODEL = "claude-haiku-5-5"  # small and fast: the watch cannot pick a model
 
 
+def child_env(extra: dict = None) -> dict:
+    """What a subprocess (the Claude CLI or a configured command) may see: no LOGIN_PASSWORD, SECRET_KEY or other secrets."""
+    keep = {k: v for k, v in os.environ.items() if k in ("PATH", "HOME", "LANG", "LC_ALL", "TZ", "TERM")}
+    return {**keep, **(extra or {})}
+
+
 class ProviderError(RuntimeError):
     pass
 
@@ -39,8 +45,7 @@ def claude_cli(cfg: dict, question: str) -> str:
          "--setting-sources", "", "--strict-mcp-config", "--system-prompt", cfg.get("system", SYSTEM)],
         input=question, capture_output=True, text=True, timeout=cfg.get("timeout", TIMEOUT),
         # the token comes from the Settings page only; nothing LLM-related is read from the container environment
-        env={**{k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN")},
-             **({"CLAUDE_CODE_OAUTH_TOKEN": cfg["api_key"]} if cfg.get("api_key") else {})},
+        env=child_env({"CLAUDE_CODE_OAUTH_TOKEN": cfg["api_key"]} if cfg.get("api_key") else None),
     )
     try:
         out = json.loads(proc.stdout)
@@ -109,7 +114,7 @@ def command(cfg: dict, question: str) -> str:
         raise ProviderError("no command set (Settings page)")
     try:
         proc = subprocess.run(argv, input=f"{cfg.get('system', SYSTEM)}\n\n{question}", capture_output=True, text=True,
-                              timeout=cfg.get("timeout", TIMEOUT))
+                              timeout=cfg.get("timeout", TIMEOUT), env=child_env())
     except FileNotFoundError:
         raise ProviderError(f"{argv[0]} is not installed")
     if proc.returncode != 0:

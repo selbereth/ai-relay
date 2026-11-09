@@ -28,7 +28,18 @@ enum Config {
         while s.hasSuffix("/") { s.removeLast() }
         guard let url = URL(string: s), let scheme = url.scheme?.lowercased(),
               scheme == "https" || scheme == "http", let host = url.host, !host.isEmpty else { return nil }
+        // The token travels with every request, so plain http is only accepted for addresses on your own network.
+        if scheme == "http" && !isLocalHost(host) { return nil }
         return s
+    }
+
+    /// localhost, .local names and private IPv4 ranges (10.x, 172.16-31.x, 192.168.x, 127.x).
+    private static func isLocalHost(_ host: String) -> Bool {
+        let h = host.lowercased()
+        if h == "localhost" || h.hasSuffix(".local") { return true }
+        let parts = h.split(separator: ".").compactMap { Int($0) }
+        guard parts.count == 4, h.split(separator: ".").count == 4 else { return false }
+        return parts[0] == 10 || parts[0] == 127 || (parts[0] == 192 && parts[1] == 168) || (parts[0] == 172 && (16...31).contains(parts[1]))
     }
 
     static func store(_ address: String) { UserDefaults.standard.set(address, forKey: key) }
