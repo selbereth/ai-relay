@@ -13,26 +13,15 @@ struct ContentView: View {
                     // First run, or the address was erased: ask for it before anything else.
                     SettingsView(isSetup: true, onRepair: {}, onServerChanged: { unpair() })
                 } else if let token {
-                    AskView(token: token) { unpair() }
+                    AskView(token: token, onUnpaired: { unpair() })
                 } else {
-                    PairView { newToken in
+                    PairView(onChange: { unpair() }) { newToken in
                         Keychain.set("token", newToken)
                         token = newToken
                     }
                 }
             }
             .id(epoch)
-            .toolbar {
-                if Config.serverURL != nil {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        NavigationLink {
-                            SettingsView(isSetup: false, onRepair: { unpair() }, onServerChanged: { unpair() })
-                        } label: {
-                            Image(systemName: "gearshape")
-                        }
-                    }
-                }
-            }
         }
     }
 
@@ -45,6 +34,8 @@ struct ContentView: View {
 
 /// Shows a short code; you type it on the server's web page and the watch picks up its token.
 struct PairView: View {
+    /// The server address or pairing was changed in Settings.
+    let onChange: () -> Void
     let onPaired: (String) -> Void
     @State private var code: String?
     @State private var error: String?
@@ -64,6 +55,9 @@ struct PairView: View {
             }
         }
         .task { await run() }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) { SettingsGear(onChange: onChange) }
+        }
     }
 
     private func run() async {
@@ -93,10 +87,25 @@ struct AskView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
-                TextField("Ask AI", text: $question)
-                    .onSubmit { Task { await ask() } }
+                HStack(spacing: 6) {
+                    TextField("Ask AI", text: $question)
+                        .onSubmit { Task { await ask() } }
+                    if !question.isEmpty {
+                        // Erases what is typed so far.
+                        Button { question = "" } label: { Image(systemName: "xmark.circle.fill") }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.secondary)
+                            .accessibilityLabel("Clear")
+                    }
+                }
                 if busy { ProgressView() }
                 if let answer { Text(answer).font(.body) }
+            }
+        }
+        .toolbar {
+            // The gear is only there while the question box is empty.
+            if question.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) { SettingsGear(onChange: onUnpaired) }
             }
         }
     }

@@ -34,13 +34,6 @@ struct SettingsView: View {
             }
         }
         .navigationTitle(isSetup ? "AI Relay" : "Settings")
-        .toolbar {
-            if !text.isEmpty {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { text = "" } label: { Image(systemName: "xmark") }
-                }
-            }
-        }
         .onDisappear { if !isSetup { commit() } }
         .confirmationDialog("Forget this pairing and get a new code?", isPresented: $confirmRepair, titleVisibility: .visible) {
             Button("Re-pair", role: .destructive) { onRepair(); dismiss() }
@@ -57,5 +50,18 @@ struct SettingsView: View {
         guard let address = Config.normalize(trimmed), address != Config.stored else { return }
         Config.store(address)
         onServerChanged()
+    }
+}
+
+/// The gear that opens Settings. `onChange` runs when the address changes or the watch is re-paired.
+struct SettingsGear: View {
+    let onChange: () -> Void
+
+    var body: some View {
+        NavigationLink {
+            SettingsView(isSetup: false, onRepair: onChange, onServerChanged: onChange)
+        } label: {
+            Image(systemName: "gearshape")
+        }
     }
 }
