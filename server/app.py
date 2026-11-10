@@ -101,6 +101,32 @@ def too_many(bucket: str, limit: int, window: float, record: bool = True) -> boo
     return False
 
 
+# /ask limits per paired device: (max requests, window in seconds). Rolling windows, all must pass; each longer
+# window allows a lower average rate than the one before (0.50/s, 0.25/s, 0.13/s, 0.07/s, 0.012/s).
+ASK_WINDOWS = ((30, 60), (60, 240), (120, 900), (250, 3600), (1000, 86400))
+_ask_hits: dict = {}
+
+
+def ask_retry_after(bucket: str, now: float = None):
+    """None when the request is allowed (and counted); otherwise whole seconds until the tightest blocking window frees a slot."""
+    now = time.time() if now is None else now
+    hits = [t for t in _ask_hits.get(bucket, []) if now - t < ASK_WINDOWS[-1][1]]
+    wait = 0.0
+    for limit, window in ASK_WINDOWS:
+        inside = [t for t in hits if now - t < window]
+        if len(inside) >= limit:  # the oldest hit that must age out to get back under this window's limit
+            wait = max(wait, inside[len(inside) - limit] + window - now)
+    if wait > 0:
+        _ask_hits[bucket] = hits
+        return int(wait) + 1
+    hits.append(now)
+    _ask_hits[bucket] = hits
+    if len(_ask_hits) > 1000:  # forget devices idle for a day
+        for k in [k for k, v in _ask_hits.items() if not v or now - v[-1] > ASK_WINDOWS[-1][1]]:
+            del _ask_hits[k]
+    return None
+
+
 def client_ip() -> str:
     return request.headers.get("CF-Connecting-IP") or request.headers.get("X-Forwarded-For", "").split(",")[0].strip() \
         or request.remote_addr or "?"
@@ -221,6 +247,12 @@ def ask():
     device = current_device()
     if device is None:
         return jsonify(error="not paired"), 401
+    wait = ask_retry_after(device["token_hash"])  # counts every attempt, including ones the LLM then fails
+    if wait is not None:
+        resp = jsonify(error=f"Too many questions. Try again in {wait} s.")
+        resp.status_code = 429
+        resp.headers["Retry-After"] = str(wait)
+        return resp
     body = request.get_json(silent=True) or {}
     question = (body.get("question") or "").strip()
     if not question:
